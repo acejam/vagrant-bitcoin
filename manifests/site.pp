@@ -47,7 +47,7 @@ class bitcoind::start
     exec { "start-bitcoin-1": 
         command   => "su - vagrant -c 'bitcoind'",
         path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        returns		=> 1,
+        returns		=> [0, 1],
         require   => Class['bitcoind::install'],
     }
 
@@ -62,7 +62,7 @@ class bitcoind::start
     exec { "start-bitcoin-2": 
         command   => "su - vagrant -c 'bitcoind -reindex'",
         path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        returns		=> 0,
+        returns		=> [0, 1],
         require   => File['/home/vagrant/.bitcoin/bitcoin.conf'],
     }
 }
@@ -91,7 +91,40 @@ class nodejs::ppa
 
 	}
 
+class insight::install
+	{
+		package { ["git"]:
+				ensure => present,
+				require => Class['nodejs::ppa']
+		}
+
+		exec { "git-clone-insight":
+				path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
+				command 	=> "git clone https://github.com/bitpay/insight.git",
+				cwd 			=> "/srv",
+				creates => "/srv/insight",
+				require 	=> Package['git']
+		}
+
+		exec { "insight-install":
+				path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
+				command => "npm install",
+				logoutput => true,
+				cwd 		=> "/srv/insight",
+				require => Exec['git-clone-insight']
+			}
+
+		exec { "insight-start":
+				path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
+				command => "NODE_ENV=production INSIGHT_NETWORK=livenet BITCOIND_USER=user BITCOIND_PASS=password BITCOIND_DATADIR=/home/vagrant/.bitcoin/ INSIGHT_PUBLIC_PATH=public INSIGHT_DB=/srv/insight/node_modules/insight-bitcore-api/db npm start",
+				cwd			=> "/srv/insight",
+				logoutput => true,
+				require => Exec['insight-install']
+		}
+	}
+
 include bitcoind::ppa
 include bitcoind::install
 include bitcoind::start
 include nodejs::ppa
+include insight::install
