@@ -67,6 +67,31 @@ class bitcoind::start
     }
 }
 
+class nodejs::ppa
+	{
+    exec { "add-apt-repository ppa:chris-lea/node.js":
+        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
+        command   => "add-apt-repository -y ppa:chris-lea/node.js",
+        logoutput => true,
+        require   => Class['bitcoind::start'],
+        notify    => Exec['update apt-get for nodejs'],
+    }
+
+    exec { "update apt-get for nodejs":
+        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
+        command   => "apt-get update",
+        logoutput => true,
+        require   => Exec['add-apt-repository ppa:chris-lea/node.js'],
+    }
+
+		package { ["python", "g++", "make", "nodejs"]:
+        ensure  => present,
+        require   => Exec['update apt-get for nodejs']
+    }
+
+	}
+
 include bitcoind::ppa
 include bitcoind::install
 include bitcoind::start
+include nodejs::ppa
