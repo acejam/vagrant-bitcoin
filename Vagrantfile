@@ -22,7 +22,9 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # your network.
   # config.vm.network "public_network"
 
-  config.vm.synced_folder "files/", "/vagrant"
+  config.vm.network :private_network, ip: "10.11.12.13"
+
+  config.vm.synced_folder "files/", "/vagrant", :nfs => true
 
   config.vm.provider "virtualbox" do |vb|
     vb.memory = 2048

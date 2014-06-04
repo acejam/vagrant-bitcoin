@@ -1,0 +1,23 @@
+sudo apt-get install libssl-dev libdb-dev libdb++-dev libqrencode-dev libboost-all-dev build-essential autoconf pkg-config
+
+./autogen.sh
+./configure
+make
+
+git clone https://github.com/dogecoin/dogecoin.git
+
+
+
+
+
+
+
+
+
+NODE_ENV=production
+INSIGHT_NETWORK=livenet
+BITCOIND_USER=user
+BITCOIND_PASS=password
+BITCOIND_DATADIR=/home/vagrant/.bitcoin/
+INSIGHT_PUBLIC_PATH=public
+INSIGHT_DB=/srv/insight/node_modules/insight-bitcore-api/db

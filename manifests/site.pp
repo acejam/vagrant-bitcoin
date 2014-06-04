@@ -82,7 +82,7 @@ class nodejs::ppa
         require   => Exec['add-apt-repository ppa:chris-lea/node.js'],
     }
 
-		package { ["python", "g++", "make", "nodejs"]:
+		package { ["python", "g++", "make", "nodejs", "nfs-common", "portmap"]:
         ensure  => present,
         require   => Exec['update apt-get for nodejs']
     }
@@ -95,35 +95,35 @@ class insight::install
         require => Class['nodejs::ppa']
 	}
 
-	exec { "git-clone-insight":
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        command 	=> "git clone https://github.com/acejam/insight.git",
-        cwd 			=> "/srv",
-        creates => "/srv/insight",
-        require 	=> Package['git']
-	}
+	# exec { "git-clone-insight":
+ #        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
+ #        command 	=> "git clone https://github.com/acejam/insight.git",
+ #        cwd 			=> "/srv",
+ #        creates => "/srv/insight",
+ #        require 	=> Package['git']
+	# }
 
-	exec { "insight-install":
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        command => "npm install",
-        logoutput => true,
-        cwd 		=> "/srv/insight",
-        require => Exec['git-clone-insight']
-	}
+	# exec { "insight-install":
+ #        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
+ #        command => "npm install",
+ #        logoutput => true,
+ #        cwd 		=> "/srv/insight",
+ #        require => Exec['git-clone-insight']
+	# }
 
-    file { "/srv/insight/node_modules/insight-bitcore-api/db":
-        ensure => directory,
-        require => Exec['insight-install']
-    }
+ #    file { "/srv/insight/node_modules/insight-bitcore-api/db":
+ #        ensure => directory,
+ #        require => Exec['insight-install']
+ #    }
 
-	exec { "insight-start":
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        environment => ["NODE_ENV=production", "INSIGHT_NETWORK=livenet", "BITCOIND_USER=user", "BITCOIND_PASS=password", "BITCOIND_DATADIR=/home/vagrant/.bitcoin/", "INSIGHT_PUBLIC_PATH=public", "INSIGHT_DB=/srv/insight/node_modules/insight-bitcore-api/db" ],
-        command => "nohup npm start &",
-        cwd			=> "/srv/insight",
-        logoutput => true,
-        require => File['/srv/insight/node_modules/insight-bitcore-api/db']
-	}
+	# exec { "insight-start":
+ #        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
+ #        environment => ["NODE_ENV=production", "INSIGHT_NETWORK=livenet", "BITCOIND_USER=user", "BITCOIND_PASS=password", "BITCOIND_DATADIR=/home/vagrant/.bitcoin/", "INSIGHT_PUBLIC_PATH=public", "INSIGHT_DB=/srv/insight/node_modules/insight-bitcore-api/db" ],
+ #        command => "nohup npm start &",
+ #        cwd			=> "/srv/insight",
+ #        logoutput => true,
+ #        require => File['/srv/insight/node_modules/insight-bitcore-api/db']
+	# }
 }
 
 include bitcoind::ppa
