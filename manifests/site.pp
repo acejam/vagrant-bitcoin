@@ -8,13 +8,20 @@ class bitcoind::ppa
         path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
         command   => "apt-get update",
         logoutput => false,
-    } 
+    }
+
+    exec { "upgrade apt-get for system": 
+        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
+        command   => "apt-get -y upgrade",
+        logoutput => false,
+        require   => Exec['update apt-get for system']
+    }
 
     exec { "add-apt-repository ppa:bitcoin/bitcoin":
         path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
         command   => "add-apt-repository -y ${repository}",
         logoutput => false,
-        require   => Exec['update apt-get for system'],
+        require   => Exec['upgrade apt-get for system'],
         notify    => Exec['update apt-get for bitcoin'],
     }
 
@@ -82,64 +89,59 @@ class nodejs::ppa
         require   => Exec['add-apt-repository ppa:chris-lea/node.js'],
     }
 
-    package { ["python", "g++", "make", "nodejs"]:
-        ensure  => present,
-        require   => Exec['update apt-get for nodejs']
-    }
 }
 
 class insight::install
 {
-
-    exec { "chmod-srv":
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        command   => "chmod -R 777 /srv",
+    package { ["python", "g++", "make", "nodejs", "git", "nfs-common", "portmap", "screen", "libssl-dev", "libdb-dev", "libdb++-dev", "libqrencode-dev", "libboost-all-dev", "build-essential", "autoconf", "pkg-config"]:
+        ensure  => present,
         require => Class['nodejs::ppa']
     }
 
-    package { ["git"]:
-        ensure => present,
-        require => Exec['chmod-srv']
-	}
-
-    exec { "git-clone-insight":
+    exec { "chmod-vagrant":
         path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        command 	=> "git clone https://github.com/bitpay/insight.git",
-        cwd 			=> "/srv",
-        user        => 'vagrant',
-        group       => 'vagrant',
-        creates => "/srv/insight",
-        logoutput => true,
-        require 	=> Package['git']
-	}
-
-    exec { "insight-install":
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        command => "npm install",
-        logoutput => true,
-        cwd 		=> "/srv/insight",
-        require => Exec['git-clone-insight']
-	}
-
-    file { "/srv/insight/node_modules/insight-bitcore-api/db":
-        ensure => directory,
-        owner => 'vagrant',
-        group => 'vagrant',
-        require => Exec['insight-install']
+        command   => "chmod -R 777 /vagrant",
     }
-
-    exec { "insight-start":
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        environment => ["NODE_ENV=production", "INSIGHT_NETWORK=livenet", "BITCOIND_USER=user", "BITCOIND_PASS=password", "BITCOIND_DATADIR=/home/vagrant/.bitcoin/", "INSIGHT_PUBLIC_PATH=public", "INSIGHT_DB=/srv/insight/node_modules/insight-bitcore-api/db" ],
-        command => "nohup npm start &",
-        user => 'vagrant',
-        group => 'vagrant',
-        #command => "su - vagrant -c 'NODE_ENV=production INSIGHT_NETWORK=livenet BITCOIND_USER=user BITCOIND_PASS=password BITCOIND_DATADIR=/home/vagrant/.bitcoin/ INSIGHT_PUBLIC_PATH=public INSIGHT_DB=/srv/insight/node_modules/insight-bitcore-api/db nohup npm start &'", 
-        cwd			=> "/srv/insight",
-        logoutput => true,
-        require => File['/srv/insight/node_modules/insight-bitcore-api/db']
-	}
 }
+
+ #    exec { "git-clone-insight":
+ #        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
+ #        command 	=> "git clone https://github.com/bitpay/insight.git",
+ #        cwd 			=> "/vagrant",
+ #        user        => 'vagrant',
+ #        group       => 'vagrant',
+ #        creates => "/vagrant/insight",
+ #        logoutput => true,
+ #        require 	=> Package['git']
+	# }
+
+ #    exec { "insight-install":
+ #        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
+ #        command => "npm install",
+ #        logoutput => true,
+ #        cwd 		=> "/vagrant/insight",
+ #        require => Exec['git-clone-insight']
+	# }
+
+ #    file { "/vagrant/insight/node_modules/insight-bitcore-api/db":
+ #        ensure => directory,
+ #        owner => 'vagrant',
+ #        group => 'vagrant',
+ #        require => Exec['insight-install']
+ #    }
+
+ #    exec { "insight-start":
+ #        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
+ #        environment => ["NODE_ENV=production", "INSIGHT_NETWORK=livenet", "BITCOIND_USER=user", "BITCOIND_PASS=password", "BITCOIND_DATADIR=/home/vagrant/.bitcoin/", "INSIGHT_PUBLIC_PATH=public", "INSIGHT_DB=/srv/insight/node_modules/insight-bitcore-api/db" ],
+ #        command => "nohup npm start &",
+ #        user => 'vagrant',
+ #        group => 'vagrant',
+ #        #command => "su - vagrant -c 'NODE_ENV=production INSIGHT_NETWORK=livenet BITCOIND_USER=user BITCOIND_PASS=password BITCOIND_DATADIR=/home/vagrant/.bitcoin/ INSIGHT_PUBLIC_PATH=public INSIGHT_DB=/srv/insight/node_modules/insight-bitcore-api/db nohup npm start &'", 
+ #        cwd			=> "/srv/insight",
+ #        logoutput => true,
+ #        require => File['/srv/insight/node_modules/insight-bitcore-api/db']
+	# }
+#}
 
 include bitcoind::ppa
 include bitcoind::install
