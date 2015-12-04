@@ -1,133 +1,71 @@
 
-class bitcoind::ppa
+Exec { path => "/usr/bin:/usr/sbin:/bin:/usr/local/bin:/usr/local/sbin:/sbin" }
+
+class system::update
 {
-
-    $repository = "ppa:bitcoin/bitcoin"
-
     exec { "update apt-get for system": 
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
         command   => "apt-get update",
-        logoutput => false,
-    } 
+    }
 
-    exec { "add-apt-repository ppa:bitcoin/bitcoin":
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        command   => "add-apt-repository -y ${repository}",
-        logoutput => false,
+    exec { "upgrade apt-get for system":
+        command   => "/usr/bin/apt-get --quiet --yes --fix-broken upgrade",
         require   => Exec['update apt-get for system'],
-        notify    => Exec['update apt-get for bitcoin'],
-    }
-
-    exec { "update apt-get for bitcoin": 
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        command   => "apt-get update",
-        logoutput => false,
-        require   => Exec['add-apt-repository ppa:bitcoin/bitcoin'],
-    }
-
-    package { "python-software-properties":
-        ensure  => present,
-        require   => Exec['update apt-get for system'],
-        before  => Exec["add-apt-repository ppa:bitcoin/bitcoin"]
     }
 }
 
-class bitcoind::install
+class nodejs::install
 {
-		package { "bitcoind":
-        ensure  => present,
-        require   => Class['bitcoind::ppa']
-    }
-}
-
-class bitcoind::start
-{
-    exec { "start-bitcoin-1": 
-        command   => "su - vagrant -c 'bitcoind'",
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        returns		=> [0, 1],
-        require   => Class['bitcoind::install'],
+    package { ["build-essential", "libssl-dev", "git"]:
+        ensure    => present,
+        require   => Class['system::update'],
     }
 
-    file { "/home/vagrant/.bitcoin/bitcoin.conf":
-    		ensure => file,
-    		owner => 'vagrant',
-    		group => 'vagrant',
-    		source => '/vagrant/bitcoin.conf',
-    		require => Exec['start-bitcoin-1']
-		}
-
-    exec { "start-bitcoin-2": 
-        command   => "su - vagrant -c 'bitcoind -reindex'",
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        returns		=> [0, 1],
-        require   => File['/home/vagrant/.bitcoin/bitcoin.conf'],
-    }
-}
-
-class nodejs::ppa
-{
-    exec { "add-apt-repository ppa:chris-lea/node.js":
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        command   => "add-apt-repository -y ppa:chris-lea/node.js",
-        logoutput => false,
-        require   => Class['bitcoind::start'],
-        notify    => Exec['update apt-get for nodejs'],
+    exec { "install nodesource":
+        command   => "curl -sL https://deb.nodesource.com/setup_4.x | sudo -E bash -",
+        require   => Package["build-essential", "libssl-dev", "git"],
     }
 
-    exec { "update apt-get for nodejs":
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        command   => "apt-get update",
-        logoutput => false,
-        require   => Exec['add-apt-repository ppa:chris-lea/node.js'],
-    }
-
-		package { ["python", "g++", "make", "nodejs"]:
-        ensure  => present,
-        require   => Exec['update apt-get for nodejs']
+    package { ["nodejs"]:
+        ensure    => present,
+        require   => Exec['install nodesource'],
     }
 }
 
 class insight::install
 {
-	package { ["git"]:
-        ensure => present,
-        require => Class['nodejs::ppa']
-	}
-
-	exec { "git-clone-insight":
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        command 	=> "git clone https://github.com/acejam/insight.git",
-        cwd 			=> "/srv",
-        creates => "/srv/insight",
-        require 	=> Package['git']
-	}
-
-	exec { "insight-install":
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        command => "npm install",
-        logoutput => true,
-        cwd 		=> "/srv/insight",
-        require => Exec['git-clone-insight']
-	}
-
-    file { "/srv/insight/node_modules/insight-bitcore-api/db":
-        ensure => directory,
-        require => Exec['insight-install']
+    exec { "install bitcore-node":
+        command  => "sudo npm install -g bitcore-node",
+        cwd      => "/home/vagrant",
+        require  => Class['nodejs::install'],
     }
 
-	exec { "insight-start":
-        path      => "/usr/local/bin:/usr/local/sbin:/usr/X11R6/bin:/usr/bin:/usr/sbin:/bin:/sbin:.",
-        environment => ["NODE_ENV=production", "INSIGHT_NETWORK=livenet", "BITCOIND_USER=user", "BITCOIND_PASS=password", "BITCOIND_DATADIR=/home/vagrant/.bitcoin/", "INSIGHT_PUBLIC_PATH=public", "INSIGHT_DB=/srv/insight/node_modules/insight-bitcore-api/db" ],
-        command => "nohup npm start &",
-        cwd			=> "/srv/insight",
-        logoutput => true,
-        require => File['/srv/insight/node_modules/insight-bitcore-api/db']
-	}
+    exec { "create mynode":
+        command  => "sudo /usr/bin/bitcore-node create mynode",
+        cwd      => "/home/vagrant",
+        creates  => "/home/vagrant/mynode",
+        require  => Exec['install bitcore-node'],
+    }
+
+    exec { "install insight-api":
+        command  => "sudo /usr/bin/bitcore-node install insight-api",
+        cwd      => "/home/vagrant/mynode",
+        require  => Exec['create mynode'],
+    }
+
+    exec { "install insight-ui":
+        command  => "sudo /usr/bin/bitcore-node install insight-ui",
+        cwd      => "/home/vagrant/mynode",
+        require  => Exec['install insight-api'],
+    }
+
+    exec { "start bitcore":
+        command  => "screen -d -m -S node sudo /usr/bin/bitcore-node start",
+        cwd      => "/home/vagrant/mynode",
+        require  => Exec['install insight-ui'],
+    }
+
 }
 
-include bitcoind::ppa
-include bitcoind::install
-include bitcoind::start
-include nodejs::ppa
+include system::update
+include nodejs::install
 include insight::install
